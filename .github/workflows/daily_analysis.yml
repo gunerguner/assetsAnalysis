@@ -54,9 +54,9 @@ jobs:
           # 根据是否使用 AI 运行主脚本
           USE_AI="${{ github.event.inputs.use_ai || 'false' }}"
           if [ "$USE_AI" = "true" ]; then
-            python main.py --use-ai --no-color 2>&1 | tee "output/${DATE}.txt"
+            python main.py -a 2>&1 | tee "output/${DATE}.txt"
           else
-            python main.py --no-color 2>&1 | tee "output/${DATE}.txt"
+            python main.py 2>&1 | tee "output/${DATE}.txt"
           fi
 
       - name: Configure Git
