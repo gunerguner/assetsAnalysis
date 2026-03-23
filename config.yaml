@@ -1,0 +1,40 @@
+assets:
+  us_stocks:
+    - symbol: "^DJI"
+      name: "道琼斯"
+    - symbol: "^GSPC"
+      name: "标普500"
+    - symbol: "^IXIC"
+      name: "纳斯达克"
+  precious_metals:
+    - symbol: "GC=F"
+      name: "黄金"
+    - symbol: "SI=F"
+      name: "白银"
+  crypto:
+    - symbol: "BTC-USD"
+      name: "比特币"
+    - symbol: "ETH-USD"
+      name: "以太坊"
+  cn_stocks:
+    - symbol: "000001.SS"
+      name: "上证指数"
+    - symbol: "000300.SS"
+      name: "沪深300"
+    - symbol: "399006.SZ"
+      name: "创业板"
+  forex:
+    - symbol: "DX-Y.NYB"
+      name: "美元指数"
+    - symbol: "CNY=X"
+      name: "美元/人民币"
+  commodities:
+    - symbol: "CL=F"
+      name: "WTI原油"
+  bonds:
+    - symbol: "^TNX"
+      name: "美债10年"
+
+analysis:
+  use_ai: false
+  output_format: "markdown"
