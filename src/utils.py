@@ -5,9 +5,10 @@ from pathlib import Path
 def generate_report(
     data_list: list,
     analysis_result: dict,
-    output_dir: Path,
+    output_dir: str | Path,
     use_ai: bool = False,
 ) -> Path:
+    output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
     timestamp = datetime.now()

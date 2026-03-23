@@ -1,5 +1,6 @@
 import argparse
 from datetime import datetime
+from pathlib import Path
 
 from src.analyzer import AssetAnalyzer
 from src.config import Config
@@ -56,7 +57,7 @@ def main():
     
     analysis_result = analyzer.analyze(data_list, use_ai=use_ai)
     
-    output_dir = args.output if args.output else config.output_dir
+    output_dir = Path(args.output) if args.output else config.output_dir
     report_path = generate_report(
         data_list=data_list,
         analysis_result=analysis_result,
