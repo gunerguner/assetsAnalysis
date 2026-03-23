@@ -39,10 +39,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Create output directory
-        run: |
-          mkdir -p output
-
       - name: Run analysis
         env:
           ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
@@ -50,13 +46,22 @@ jobs:
         run: |
           # 获取当前日期（美国东部时间）
           DATE=$(TZ='America/New_York' date +%Y-%m-%d)
+          YEAR=$(echo $DATE | cut -d'-' -f1)
+          MONTH=$(echo $DATE | cut -d'-' -f2)
+          
+          # 创建 data 目录结构
+          mkdir -p "data/${YEAR}/${MONTH}"
+          OUTPUT_FILE="data/${YEAR}/${MONTH}/${DATE}.txt"
+          
           echo "Running analysis for date: $DATE"
-          # 根据是否使用 AI 运行主脚本
+          echo "Output will be saved to: $OUTPUT_FILE"
+          
+          # 根据是否使用 AI 运行主脚本，直接输出到 data 目录
           USE_AI="${{ github.event.inputs.use_ai || 'false' }}"
           if [ "$USE_AI" = "true" ]; then
-            python main.py -a 2>&1 | tee "output/${DATE}.txt"
+            python main.py -a 2>&1 | tee "$OUTPUT_FILE"
           else
-            python main.py 2>&1 | tee "output/${DATE}.txt"
+            python main.py 2>&1 | tee "$OUTPUT_FILE"
           fi
 
       - name: Configure Git
@@ -80,19 +85,19 @@ jobs:
             git checkout -b data origin/data 2>/dev/null || git checkout -b data
           fi
 
-          # 创建以日期命名的文件夹（年/月结构）
+          # 计算文件路径
           YEAR=$(echo $DATE | cut -d'-' -f1)
           MONTH=$(echo $DATE | cut -d'-' -f2)
-          echo "[INFO] Copying report to data/${YEAR}/${MONTH}/${DATE}.txt"
-          mkdir -p "data/${YEAR}/${MONTH}"
+          OUTPUT_FILE="data/${YEAR}/${MONTH}/${DATE}.txt"
+          
+          echo "[INFO] Publishing report to ${OUTPUT_FILE}"
 
-          # 复制输出文件到数据目录
-          cp "output/${DATE}.txt" "data/${YEAR}/${MONTH}/"
-
+          # 强制添加文件（覆盖已存在的文件）
+          git add -f "$OUTPUT_FILE"
+          
           # 检测暂存变更并按需提交
-          git add "data/${YEAR}/${MONTH}/${DATE}.txt"
           if git diff --cached --quiet; then
-            echo "[INFO] No staged changes detected. Skipping commit and push."
+            echo "[INFO] No changes detected. File content is identical. Skipping commit and push."
             exit 0
           fi
 
