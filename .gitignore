@@ -38,3 +38,5 @@ htmlcov/
 
 output/*.md
 !output/.gitkeep
+
+.trae/

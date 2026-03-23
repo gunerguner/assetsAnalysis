@@ -1,6 +1,6 @@
 from typing import Any
 
-from zai import ZaiClient
+from zai import ZhipuAiClient
 
 from src.config import Config
 from src.data_fetcher import AssetData
@@ -13,7 +13,7 @@ class AssetAnalyzer:
         
         if config.zai_api_key:
             try:
-                self.client = ZaiClient(api_key=config.zai_api_key)
+                self.client = ZhipuAiClient(api_key=config.zai_api_key)
             except Exception:
                 pass
     

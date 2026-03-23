@@ -10,18 +10,18 @@ from src.utils import generate_report
 def main():
     parser = argparse.ArgumentParser(description="资产数据分析工具")
     parser.add_argument(
-        "--use-ai",
+        "-a", "--use-ai",
         action="store_true",
         help="使用AI分析（需要配置ZAI_API_KEY）",
     )
     parser.add_argument(
-        "--config",
+        "-c", "--config",
         type=str,
         default=None,
         help="配置文件路径（默认使用config.yaml）",
     )
     parser.add_argument(
-        "--output",
+        "-o", "--output",
         type=str,
         default=None,
         help="输出目录路径（默认使用output/）",
