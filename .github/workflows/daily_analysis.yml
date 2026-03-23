@@ -5,10 +5,10 @@ on:
     # 美股收盘时间：美东时间 16:00 (东部时间 UTC-4/UTC-5)
     # 美股收盘后 1 小时 = 美东时间 17:00
     # 转换为 UTC 时间：21:00 或 22:00 (取决于夏令时)
-    #  cron 格式：分 时 日 月 星期 (UTC 时间)
+    # cron 格式：分 时 日 月 星期 (UTC 时间)
     # 只在美股交易日运行（周一到周五）
     - cron: '30 22 * * 1-5'
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
     inputs:
       use_ai:
         description: 'Use AI analysis'
@@ -27,7 +27,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 获取完整历史
+          fetch-depth: 0
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -44,31 +44,36 @@ jobs:
           ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
           TZ: America/New_York
         run: |
-          # 获取当前日期（美国东部时间）
           DATE=$(TZ='America/New_York' date +%Y-%m-%d)
-          YEAR=$(echo $DATE | cut -d'-' -f1)
-          MONTH=$(echo $DATE | cut -d'-' -f2)
-          
-          # 创建临时输出目录
-          mkdir -p /tmp/analysis_output
-          OUTPUT_FILE="/tmp/analysis_output/${DATE}.txt"
-          
+          YEAR=$(echo "$DATE" | cut -d'-' -f1)
+          MONTH=$(echo "$DATE" | cut -d'-' -f2)
+
+          REPORT_DIR="/tmp/analysis_output/report"
+          LOG_FILE="/tmp/analysis_output/${DATE}.log"
+
+          mkdir -p "$REPORT_DIR"
+
           echo "Running analysis for date: $DATE"
-          echo "Output will be saved to: $OUTPUT_FILE"
-          
-          # 根据是否使用 AI 运行主脚本，输出到临时目录
+          echo "Generated report directory: $REPORT_DIR"
+          echo "Execution log will be saved to: $LOG_FILE"
+
           USE_AI="${{ github.event.inputs.use_ai || 'false' }}"
           if [ "$USE_AI" = "true" ]; then
-            python main.py -a 2>&1 | tee "$OUTPUT_FILE"
+            python main.py -a -o "$REPORT_DIR" 2>&1 | tee "$LOG_FILE"
           else
-            python main.py 2>&1 | tee "$OUTPUT_FILE"
+            python main.py -o "$REPORT_DIR" 2>&1 | tee "$LOG_FILE"
           fi
-          
-          # 保存路径供后续步骤使用
-          echo "OUTPUT_FILE=$OUTPUT_FILE" >> $GITHUB_ENV
-          echo "DATE=$DATE" >> $GITHUB_ENV
-          echo "YEAR=$YEAR" >> $GITHUB_ENV
-          echo "MONTH=$MONTH" >> $GITHUB_ENV
+
+          REPORT_FILE=$(find "$REPORT_DIR" -maxdepth 1 -type f -name 'analysis_*.md' | sort | tail -n 1)
+          if [ -z "$REPORT_FILE" ]; then
+            echo "[ERROR] No generated analysis report found in $REPORT_DIR"
+            exit 1
+          fi
+
+          echo "REPORT_FILE=$REPORT_FILE" >> "$GITHUB_ENV"
+          echo "DATE=$DATE" >> "$GITHUB_ENV"
+          echo "YEAR=$YEAR" >> "$GITHUB_ENV"
+          echo "MONTH=$MONTH" >> "$GITHUB_ENV"
 
       - name: Configure Git
         run: |
@@ -81,33 +86,25 @@ jobs:
         run: |
           echo "[INFO] Preparing to publish analysis for date: ${{ env.DATE }}"
 
-          # 创建或切换到 data 分支（使用 git switch 更安全）
           echo "[INFO] Checking out data branch"
           git fetch origin data 2>/dev/null || true
-          
-          # 尝试切换到 data 分支，如果不存在则创建
+
           if git show-ref --verify --quiet refs/remotes/origin/data; then
-            # 分支存在于远程，使用 --force 覆盖本地未跟踪文件
             git checkout -f -B data origin/data
           else
-            # 分支不存在，创建空分支
             git checkout -f --orphan data
             git rm -rf . 2>/dev/null || true
           fi
 
-          # 计算目标文件路径
-          OUTPUT_FILE="data/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DATE }}.txt"
-          
-          echo "[INFO] Publishing report to ${OUTPUT_FILE}"
-          
-          # 创建目录并复制文件
-          mkdir -p "data/${{ env.YEAR }}/${{ env.MONTH }}"
-          cp "${{ env.OUTPUT_FILE }}" "$OUTPUT_FILE"
+          OUTPUT_FILE="data/${{ env.YEAR }}/${{ env.MONTH }}/${{ env.DATE }}.md"
 
-          # 强制添加文件（覆盖已存在的文件）
+          echo "[INFO] Publishing generated report to ${OUTPUT_FILE}"
+
+          mkdir -p "data/${{ env.YEAR }}/${{ env.MONTH }}"
+          cp "${{ env.REPORT_FILE }}" "$OUTPUT_FILE"
+
           git add -f "$OUTPUT_FILE"
-          
-          # 检测暂存变更并按需提交
+
           if git diff --cached --quiet; then
             echo "[INFO] No changes detected. File content is identical. Skipping commit and push."
             exit 0
