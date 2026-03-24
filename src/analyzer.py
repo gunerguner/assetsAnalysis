@@ -40,19 +40,42 @@ class AssetAnalyzer:
 
         return "\n".join(lines)
 
+    def _generate_search_query(self, data: list[AssetData]) -> str:
+        valid_assets = [d for d in data if not d.error]
+        asset_names = [d.name for d in valid_assets]
+        base_keywords = ["市场分析", "财经新闻", "市场走势", "投资策略"]
+        
+        return " ".join(asset_names + base_keywords)
+
     def analyze_with_ai(self, data: list[AssetData]) -> str:
         if not self.client:
             return "AI分析不可用：未配置API密钥或zai-sdk未安装"
 
         data_summary = self._format_data_for_analysis(data)
-        prompt = self.config.analysis_prompt.format(data_summary=data_summary)
+        search_query = self._generate_search_query(data)
+        prompt = self.config.analysis_prompt.format(
+            data_summary=data_summary,
+            search_query=search_query
+        )
 
         try:
             response = self.client.chat.completions.create(
                 model=self.config.ai_model,
                 messages=[{"role": "user", "content": prompt}],
+                tools=[
+                    {
+                        "type": "web_search",
+                        "web_search": {
+                            "enable": True,
+                            "search_query": search_query,
+                            "search_result": True,
+                        }
+                    }
+                ],
             )
-            return response.choices[0].message.content
+            
+            message = response.choices[0].message
+            return message.content or "AI分析返回空内容"
         except Exception as e:
             return f"AI分析失败: {str(e)}"
 
