@@ -1,15 +1,12 @@
 import argparse
-from datetime import datetime
 from pathlib import Path
 
 from src.analyzer import AssetAnalyzer
 from src.config import Config
-from src.data_fetcher import AssetData, AssetDataFetcher
-from src.utils import generate_report
-
-
-def log_step(message: str) -> None:
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}")
+from src.data_fetcher import AssetDataFetcher
+from src.model import AssetData
+from src.reporter import generate_report
+from src.utils import log_step
 
 
 def parse_args() -> argparse.Namespace:

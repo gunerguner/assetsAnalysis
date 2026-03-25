@@ -2,10 +2,10 @@ import os
 from pathlib import Path
 from typing import Any
 
-import yaml
 from dotenv import load_dotenv
 
 from .model import AnalysisConfig, AssetSpec, CategorySpec
+from .utils import load_yaml
 
 
 class Config:
@@ -23,30 +23,12 @@ class Config:
         self._categories = self._parse_assets()
         self._analysis = self._parse_analysis()
 
-    def _load_yaml_dict(
-        self, path: Path, *, allow_missing: bool = False, root_name: str = "配置文件"
-    ) -> dict[str, Any]:
-        if not path.exists():
-            if allow_missing:
-                return {}
-            raise FileNotFoundError(f"配置文件不存在: {path}")
-
-        with open(path, "r", encoding="utf-8") as f:
-            parsed = yaml.safe_load(f) or {}
-
-        if not isinstance(parsed, dict):
-            raise ValueError(f"{root_name}格式错误：根节点必须是对象")
-
-        return parsed
-
     def _load_config(self) -> dict[str, Any]:
-        return self._load_yaml_dict(self.config_path, root_name="配置文件")
+        return load_yaml(self.config_path, root_name="配置文件")
 
     def _load_prompts(self) -> dict[str, Any]:
         prompts_path = self.project_root / "prompts.yaml"
-        return self._load_yaml_dict(
-            prompts_path, allow_missing=True, root_name="prompts 文件"
-        )
+        return load_yaml(prompts_path, allow_missing=True, root_name="prompts 文件")
 
     def _parse_assets(self) -> list[CategorySpec]:
         assets_config = self._config.get("assets", [])
@@ -121,10 +103,7 @@ class Config:
 
     @property
     def all_assets(self) -> list[AssetSpec]:
-        result: list[AssetSpec] = []
-        for category in self._categories:
-            result.extend(category.items)
-        return result
+        return [asset for cat in self._categories for asset in cat.items]
 
     @property
     def category_names(self) -> dict[str, str]:

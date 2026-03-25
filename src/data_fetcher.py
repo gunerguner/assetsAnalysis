@@ -45,64 +45,50 @@ class AssetDataFetcher:
 
         return current_price, previous_close, volume
 
+    def _create_asset_data(
+        self,
+        symbol: str,
+        name: str,
+        category: str,
+        current_price: float | None,
+        previous_close: float | None,
+        volume: int | None,
+        error: str | None = None,
+    ) -> AssetData:
+        change = None
+        change_percent = None
+        if current_price is not None and previous_close is not None and previous_close != 0:
+            change = current_price - previous_close
+            change_percent = (change / previous_close) * 100
+        return AssetData(
+            symbol=symbol,
+            name=name,
+            category=category,
+            current_price=current_price,
+            previous_close=previous_close,
+            change=change,
+            change_percent=change_percent,
+            volume=volume,
+            timestamp=datetime.now(),
+            error=error,
+        )
+
     def fetch_single(self, symbol: str, name: str, category: str) -> AssetData:
         for attempt in range(self.retry_count):
             try:
                 ticker = yf.Ticker(symbol)
                 current_price, previous_close, volume = self._extract_market_data(ticker)
-
-                change = None
-                change_percent = None
-                if (
-                    current_price is not None
-                    and previous_close is not None
-                    and previous_close != 0
-                ):
-                    change = current_price - previous_close
-                    change_percent = (change / previous_close) * 100
-
-                return AssetData(
-                    symbol=symbol,
-                    name=name,
-                    category=category,
-                    current_price=current_price,
-                    previous_close=previous_close,
-                    change=change,
-                    change_percent=change_percent,
-                    volume=volume,
-                    timestamp=datetime.now(),
+                return self._create_asset_data(
+                    symbol, name, category, current_price, previous_close, volume
                 )
             except Exception as e:
                 if attempt < self.retry_count - 1:
-                    backoff = self.retry_delay * (2**attempt)
-                    jitter = random.uniform(0, self.retry_delay * 0.3)
-                    time.sleep(backoff + jitter)
+                    time.sleep(self.retry_delay * (2**attempt) + random.uniform(0, self.retry_delay * 0.3))
                 else:
-                    return AssetData(
-                        symbol=symbol,
-                        name=name,
-                        category=category,
-                        current_price=None,
-                        previous_close=None,
-                        change=None,
-                        change_percent=None,
-                        volume=None,
-                        timestamp=datetime.now(),
-                        error=str(e),
+                    return self._create_asset_data(
+                        symbol, name, category, None, None, None, error=str(e)
                     )
-
-        return AssetData(
-            symbol=symbol,
-            name=name,
-            category=category,
-            current_price=None,
-            previous_close=None,
-            change=None,
-            change_percent=None,
-            volume=None,
-            timestamp=datetime.now(),
-            error="Unknown error after retries",
-        )
+        return self._create_asset_data(symbol, name, category, None, None, None, error="Unknown error after retries")
 
     def fetch_all(self, assets: list[AssetSpec]) -> list[AssetData]:
         if not assets:
@@ -129,5 +115,5 @@ class AssetDataFetcher:
         return [result for result in results if result is not None]
 
     def fetch_by_category(self, assets: list[AssetSpec], category: str) -> list[AssetData]:
-        filtered = [a for a in assets if a.category == category]
+        filtered = [a for a in assets if a.category_key == category]
         return self.fetch_all(filtered)

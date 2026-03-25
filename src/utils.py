@@ -2,87 +2,27 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from src.model import AssetData, AnalysisResult
+import yaml
+
+def load_yaml(
+    path: Path, *, allow_missing: bool = False, root_name: str = "文件"
+) -> dict[str, Any]:
+    if not path.exists():
+        if allow_missing:
+            return {}
+        raise FileNotFoundError(f"配置文件不存在: {path}")
+
+    with open(path, "r", encoding="utf-8") as f:
+        parsed = yaml.safe_load(f) or {}
+
+    if not isinstance(parsed, dict):
+        raise ValueError(f"{root_name}格式错误：根节点必须是对象")
+
+    return parsed
+
+def format_timestamp(dt: datetime | None = None) -> str:
+    return (dt or datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _render_overview(
-    data_list: list[AssetData], category_names: dict[str, str]
-) -> list[str]:
-    lines: list[str] = []
-    current_category = None
-
-    for item in data_list:
-        if item.category != current_category:
-            current_category = item.category
-            display_name = category_names.get(current_category, current_category)
-            lines.append(f"### {display_name}")
-            lines.append("")
-
-        if item.error:
-            lines.append(f"- **{item.name}** ({item.symbol}): 数据获取失败")
-            continue
-
-        price_str = f"{item.current_price:.2f}" if item.current_price is not None else "N/A"
-        change_str = ""
-        if item.change is not None and item.change_percent is not None:
-            change_str = f" | 涨跌: {item.change:+.2f} ({item.change_percent:+.2f}%)"
-        lines.append(f"- **{item.name}** ({item.symbol}): {price_str}{change_str}")
-
-    return lines
-
-
-def render_markdown_report(
-    data_list: list[AssetData],
-    analysis_result: AnalysisResult,
-    category_names: dict[str, str],
-    use_ai: bool = False,
-) -> str:
-    lines = [
-        "# 资产分析报告",
-        "",
-        f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        "",
-        "## 数据概览",
-        "",
-    ]
-
-    lines.extend(_render_overview(data_list, category_names))
-    lines.append("")
-    lines.append(analysis_result.get("basic_analysis", ""))
-
-    if use_ai and analysis_result.get("ai_analysis"):
-        lines.append("")
-        lines.append("## AI 分析")
-        lines.append("")
-        lines.append(analysis_result["ai_analysis"])
-
-    return "\n".join(lines)
-
-
-def write_report(content: str, output_dir: str | Path) -> Path:
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    filename = f"analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
-    output_path = output_dir / filename
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(content)
-
-    return output_path
-
-
-def generate_report(
-    data_list: list[AssetData],
-    analysis_result: AnalysisResult,
-    category_names: dict[str, str],
-    output_dir: str | Path,
-    use_ai: bool = False,
-) -> Path:
-    content = render_markdown_report(
-        data_list=data_list,
-        analysis_result=analysis_result,
-        category_names=category_names,
-        use_ai=use_ai,
-    )
-    return write_report(content=content, output_dir=output_dir)
+def log_step(message: str) -> None:
+    print(f"[{format_timestamp()}] {message}")

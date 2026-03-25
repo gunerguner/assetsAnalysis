@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, TypedDict
+from typing import TypedDict
 
 
 @dataclass(frozen=True)
@@ -35,20 +35,6 @@ class AssetData:
     volume: int | None
     timestamp: datetime
     error: str | None = None
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "symbol": self.symbol,
-            "name": self.name,
-            "category": self.category,
-            "current_price": self.current_price,
-            "previous_close": self.previous_close,
-            "change": self.change,
-            "change_percent": self.change_percent,
-            "volume": self.volume,
-            "timestamp": self.timestamp.isoformat(),
-            "error": self.error,
-        }
 
 
 class AnalysisResult(TypedDict):

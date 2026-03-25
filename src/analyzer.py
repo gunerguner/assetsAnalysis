@@ -95,24 +95,11 @@ class AssetAnalyzer:
     def _group_assets_by_change(
         self, data: list[AssetData]
     ) -> tuple[list[AssetData], list[AssetData], list[AssetData], list[AssetData]]:
-        up_assets: list[AssetData] = []
-        down_assets: list[AssetData] = []
-        flat_assets: list[AssetData] = []
-        error_assets: list[AssetData] = []
-
-        for asset in data:
-            if asset.error:
-                error_assets.append(asset)
-                continue
-            if asset.change_percent is None:
-                continue
-            if asset.change_percent > 0:
-                up_assets.append(asset)
-            elif asset.change_percent < 0:
-                down_assets.append(asset)
-            else:
-                flat_assets.append(asset)
-
+        error_assets = [a for a in data if a.error]
+        valid_assets = [a for a in data if not a.error and a.change_percent is not None]
+        up_assets = [a for a in valid_assets if a.change_percent > 0]
+        down_assets = [a for a in valid_assets if a.change_percent < 0]
+        flat_assets = [a for a in valid_assets if a.change_percent == 0]
         return up_assets, down_assets, flat_assets, error_assets
 
     def _append_assets_section(
@@ -126,14 +113,9 @@ class AssetAnalyzer:
     ) -> None:
         if not assets:
             return
-
         lines.append(title)
-        sorted_assets = sorted(
-            assets, key=lambda item: item.change_percent or 0, reverse=reverse
-        )
-        for item in sorted_assets:
-            prefix = "+" if prefix_plus else ""
-            lines.append(f"- {item.name}: {prefix}{item.change_percent:.2f}%")
+        for item in sorted(assets, key=lambda a: a.change_percent or 0, reverse=reverse):
+            lines.append(f"- {item.name}: {'+' if prefix_plus else ''}{item.change_percent:.2f}%")
         lines.append("")
 
     def analyze_basic(self, data: list[AssetData]) -> str:
