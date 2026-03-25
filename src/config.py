@@ -35,26 +35,30 @@ class Config:
         self._assets = self._parse_assets()
         self._analysis = self._parse_analysis()
 
+    def _load_yaml_dict(
+        self, path: Path, *, allow_missing: bool = False, root_name: str = "配置文件"
+    ) -> dict[str, Any]:
+        if not path.exists():
+            if allow_missing:
+                return {}
+            raise FileNotFoundError(f"配置文件不存在: {path}")
+
+        with open(path, "r", encoding="utf-8") as f:
+            parsed = yaml.safe_load(f) or {}
+
+        if not isinstance(parsed, dict):
+            raise ValueError(f"{root_name}格式错误：根节点必须是对象")
+
+        return parsed
+
     def _load_config(self) -> dict[str, Any]:
-        if not self.config_path.exists():
-            raise FileNotFoundError(f"配置文件不存在: {self.config_path}")
-
-        with open(self.config_path, "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f) or {}
-
-        if not isinstance(config, dict):
-            raise ValueError("配置文件格式错误：根节点必须是对象")
-
-        return config
+        return self._load_yaml_dict(self.config_path, root_name="配置文件")
 
     def _load_prompts(self) -> dict[str, Any]:
         prompts_path = self.project_root / "prompts.yaml"
-        if prompts_path.exists():
-            with open(prompts_path, "r", encoding="utf-8") as f:
-                prompts = yaml.safe_load(f) or {}
-                if isinstance(prompts, dict):
-                    return prompts
-        return {}
+        return self._load_yaml_dict(
+            prompts_path, allow_missing=True, root_name="prompts 文件"
+        )
 
     def _parse_assets(self) -> list[AssetSpec]:
         assets_config = self._config.get("assets", {})

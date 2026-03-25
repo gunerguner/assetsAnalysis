@@ -7,6 +7,9 @@ from src.data_fetcher import AssetData
 
 
 class AssetAnalyzer:
+    SEARCH_QUERY_ASSET_LIMIT = 8
+    SEARCH_QUERY_KEYWORDS = ("市场分析", "财经新闻", "市场走势", "投资策略")
+
     def __init__(self, config: Config):
         self.config = config
         self.client = None
@@ -41,11 +44,21 @@ class AssetAnalyzer:
         return "\n".join(lines)
 
     def _generate_search_query(self, data: list[AssetData]) -> str:
-        valid_assets = [d for d in data if not d.error]
-        asset_names = [d.name for d in valid_assets]
-        base_keywords = ["市场分析", "财经新闻", "市场走势", "投资策略"]
-        
-        return " ".join(asset_names + base_keywords)
+        unique_asset_names: list[str] = []
+        seen: set[str] = set()
+
+        for asset in data:
+            if asset.error:
+                continue
+            clean_name = asset.name.strip()
+            if not clean_name or clean_name in seen:
+                continue
+            seen.add(clean_name)
+            unique_asset_names.append(clean_name)
+            if len(unique_asset_names) >= self.SEARCH_QUERY_ASSET_LIMIT:
+                break
+
+        return " ".join(unique_asset_names + list(self.SEARCH_QUERY_KEYWORDS))
 
     def analyze_with_ai(self, data: list[AssetData]) -> str:
         if not self.client:
@@ -79,19 +92,56 @@ class AssetAnalyzer:
         except Exception as e:
             return f"AI分析失败: {str(e)}"
 
+    def _group_assets_by_change(
+        self, data: list[AssetData]
+    ) -> tuple[list[AssetData], list[AssetData], list[AssetData], list[AssetData]]:
+        up_assets: list[AssetData] = []
+        down_assets: list[AssetData] = []
+        flat_assets: list[AssetData] = []
+        error_assets: list[AssetData] = []
+
+        for asset in data:
+            if asset.error:
+                error_assets.append(asset)
+                continue
+            if asset.change_percent is None:
+                continue
+            if asset.change_percent > 0:
+                up_assets.append(asset)
+            elif asset.change_percent < 0:
+                down_assets.append(asset)
+            else:
+                flat_assets.append(asset)
+
+        return up_assets, down_assets, flat_assets, error_assets
+
+    def _append_assets_section(
+        self,
+        lines: list[str],
+        title: str,
+        assets: list[AssetData],
+        *,
+        reverse: bool = False,
+        prefix_plus: bool = False,
+    ) -> None:
+        if not assets:
+            return
+
+        lines.append(title)
+        sorted_assets = sorted(
+            assets, key=lambda item: item.change_percent or 0, reverse=reverse
+        )
+        for item in sorted_assets:
+            prefix = "+" if prefix_plus else ""
+            lines.append(f"- {item.name}: {prefix}{item.change_percent:.2f}%")
+        lines.append("")
+
     def analyze_basic(self, data: list[AssetData]) -> str:
         lines = ["## 基础分析\n"]
 
-        up_assets = [
-            d for d in data if d.change_percent is not None and d.change_percent > 0
-        ]
-        down_assets = [
-            d for d in data if d.change_percent is not None and d.change_percent < 0
-        ]
-        flat_assets = [
-            d for d in data if d.change_percent is not None and d.change_percent == 0
-        ]
-        error_assets = [d for d in data if d.error]
+        up_assets, down_assets, flat_assets, error_assets = self._group_assets_by_change(
+            data
+        )
 
         lines.append(f"### 涨跌统计")
         lines.append(f"- 上涨资产: {len(up_assets)} 个")
@@ -99,23 +149,10 @@ class AssetAnalyzer:
         lines.append(f"- 持平资产: {len(flat_assets)} 个")
         lines.append(f"- 获取失败: {len(error_assets)} 个\n")
 
-        if up_assets:
-            lines.append("### 上涨资产")
-            up_assets.sort(key=lambda x: x.change_percent or 0, reverse=True)
-            for item in up_assets:
-                lines.append(
-                    f"- {item.name}: +{item.change_percent:.2f}%"
-                )
-            lines.append("")
-
-        if down_assets:
-            lines.append("### 下跌资产")
-            down_assets.sort(key=lambda x: x.change_percent or 0)
-            for item in down_assets:
-                lines.append(
-                    f"- {item.name}: {item.change_percent:.2f}%"
-                )
-            lines.append("")
+        self._append_assets_section(
+            lines, "### 上涨资产", up_assets, reverse=True, prefix_plus=True
+        )
+        self._append_assets_section(lines, "### 下跌资产", down_assets)
 
         return "\n".join(lines)
 
