@@ -1,41 +1,13 @@
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
 import yfinance as yf
 
 from src.config import AssetSpec
-
-
-@dataclass
-class AssetData:
-    symbol: str
-    name: str
-    category: str
-    current_price: float | None
-    previous_close: float | None
-    change: float | None
-    change_percent: float | None
-    volume: int | None
-    timestamp: datetime
-    error: str | None = None
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "symbol": self.symbol,
-            "name": self.name,
-            "category": self.category,
-            "current_price": self.current_price,
-            "previous_close": self.previous_close,
-            "change": self.change,
-            "change_percent": self.change_percent,
-            "volume": self.volume,
-            "timestamp": self.timestamp.isoformat(),
-            "error": self.error,
-        }
+from src.model import AssetData
 
 
 class AssetDataFetcher:
@@ -145,7 +117,7 @@ class AssetDataFetcher:
                     self.fetch_single,
                     symbol=asset.symbol,
                     name=asset.name,
-                    category=asset.category,
+                    category=asset.category_key,
                 ): idx
                 for idx, asset in enumerate(assets)
             }

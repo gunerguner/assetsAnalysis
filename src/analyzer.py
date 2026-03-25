@@ -3,7 +3,7 @@ from typing import Any
 from zai import ZhipuAiClient
 
 from src.config import Config
-from src.data_fetcher import AssetData
+from src.model import AssetData
 
 
 class AssetAnalyzer:

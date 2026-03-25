@@ -1,34 +1,20 @@
 from datetime import datetime
 from pathlib import Path
-from typing import TypedDict
+from typing import Any
 
-from src.data_fetcher import AssetData
-
-
-CATEGORY_NAMES = {
-    "us_stocks": "美股",
-    "precious_metals": "贵金属",
-    "crypto": "数字货币",
-    "cn_stocks": "A股",
-    "forex": "汇率",
-    "commodities": "大宗商品",
-    "bonds": "债券",
-}
+from src.model import AssetData, AnalysisResult
 
 
-class AnalysisResult(TypedDict):
-    basic_analysis: str
-    ai_analysis: str | None
-
-
-def _render_overview(data_list: list[AssetData]) -> list[str]:
+def _render_overview(
+    data_list: list[AssetData], category_names: dict[str, str]
+) -> list[str]:
     lines: list[str] = []
     current_category = None
 
     for item in data_list:
         if item.category != current_category:
             current_category = item.category
-            display_name = CATEGORY_NAMES.get(current_category, current_category)
+            display_name = category_names.get(current_category, current_category)
             lines.append(f"### {display_name}")
             lines.append("")
 
@@ -46,7 +32,10 @@ def _render_overview(data_list: list[AssetData]) -> list[str]:
 
 
 def render_markdown_report(
-    data_list: list[AssetData], analysis_result: AnalysisResult, use_ai: bool = False
+    data_list: list[AssetData],
+    analysis_result: AnalysisResult,
+    category_names: dict[str, str],
+    use_ai: bool = False,
 ) -> str:
     lines = [
         "# 资产分析报告",
@@ -57,7 +46,7 @@ def render_markdown_report(
         "",
     ]
 
-    lines.extend(_render_overview(data_list))
+    lines.extend(_render_overview(data_list, category_names))
     lines.append("")
     lines.append(analysis_result.get("basic_analysis", ""))
 
@@ -86,10 +75,14 @@ def write_report(content: str, output_dir: str | Path) -> Path:
 def generate_report(
     data_list: list[AssetData],
     analysis_result: AnalysisResult,
+    category_names: dict[str, str],
     output_dir: str | Path,
     use_ai: bool = False,
 ) -> Path:
     content = render_markdown_report(
-        data_list=data_list, analysis_result=analysis_result, use_ai=use_ai
+        data_list=data_list,
+        analysis_result=analysis_result,
+        category_names=category_names,
+        use_ai=use_ai,
     )
     return write_report(content=content, output_dir=output_dir)

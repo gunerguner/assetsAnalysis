@@ -67,6 +67,7 @@ def run_pipeline(args: argparse.Namespace) -> str:
     report_path = generate_report(
         data_list=data_list,
         analysis_result=analysis_result,
+        category_names=config.category_names,
         output_dir=output_dir,
         use_ai=use_ai,
     )

@@ -1,23 +1,11 @@
 import os
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import yaml
 from dotenv import load_dotenv
 
-
-@dataclass(frozen=True)
-class AssetSpec:
-    symbol: str
-    name: str
-    category: str
-
-
-@dataclass(frozen=True)
-class AnalysisConfig:
-    use_ai: bool
-    output_format: str
+from .model import AnalysisConfig, AssetSpec, CategorySpec
 
 
 class Config:
@@ -32,7 +20,7 @@ class Config:
 
         self._config = self._load_config()
         self._prompts = self._load_prompts()
-        self._assets = self._parse_assets()
+        self._categories = self._parse_assets()
         self._analysis = self._parse_analysis()
 
     def _load_yaml_dict(
@@ -60,34 +48,58 @@ class Config:
             prompts_path, allow_missing=True, root_name="prompts 文件"
         )
 
-    def _parse_assets(self) -> list[AssetSpec]:
-        assets_config = self._config.get("assets", {})
-        if not isinstance(assets_config, dict):
-            raise ValueError("assets 配置必须是对象，格式为 {类别: 资产列表}")
+    def _parse_assets(self) -> list[CategorySpec]:
+        assets_config = self._config.get("assets", [])
+        if not isinstance(assets_config, list):
+            raise ValueError("assets 配置必须是数组")
 
-        result: list[AssetSpec] = []
-        for category, assets in assets_config.items():
-            if not isinstance(assets, list):
-                raise ValueError(f"assets.{category} 必须是数组")
+        result: list[CategorySpec] = []
+        for cat_idx, category in enumerate(assets_config):
+            if not isinstance(category, dict):
+                raise ValueError(f"assets[{cat_idx}] 必须是对象")
 
-            for idx, asset in enumerate(assets):
-                if not isinstance(asset, dict):
-                    raise ValueError(f"assets.{category}[{idx}] 必须是对象")
+            key = category.get("key")
+            display_name = category.get("display_name")
+            items = category.get("items", [])
 
-                symbol = asset.get("symbol")
-                name = asset.get("name")
+            if not isinstance(key, str) or not key.strip():
+                raise ValueError(f"assets[{cat_idx}].key 必须是非空字符串")
+            if not isinstance(display_name, str) or not display_name.strip():
+                raise ValueError(f"assets[{cat_idx}].display_name 必须是非空字符串")
+            if not isinstance(items, list):
+                raise ValueError(f"assets[{cat_idx}].items 必须是数组")
+
+            asset_specs: list[AssetSpec] = []
+            for item_idx, item in enumerate(items):
+                if not isinstance(item, dict):
+                    raise ValueError(f"assets[{cat_idx}].items[{item_idx}] 必须是对象")
+
+                symbol = item.get("symbol")
+                name = item.get("name")
                 if not isinstance(symbol, str) or not symbol.strip():
-                    raise ValueError(f"assets.{category}[{idx}].symbol 必须是非空字符串")
+                    raise ValueError(
+                        f"assets[{cat_idx}].items[{item_idx}].symbol 必须是非空字符串"
+                    )
                 if not isinstance(name, str) or not name.strip():
-                    raise ValueError(f"assets.{category}[{idx}].name 必须是非空字符串")
+                    raise ValueError(
+                        f"assets[{cat_idx}].items[{item_idx}].name 必须是非空字符串"
+                    )
 
-                result.append(
+                asset_specs.append(
                     AssetSpec(
                         symbol=symbol.strip(),
                         name=name.strip(),
-                        category=str(category),
+                        category_key=key.strip(),
                     )
                 )
+
+            result.append(
+                CategorySpec(
+                    key=key.strip(),
+                    display_name=display_name.strip(),
+                    items=asset_specs,
+                )
+            )
 
         return result
 
@@ -104,8 +116,19 @@ class Config:
         return AnalysisConfig(use_ai=use_ai, output_format=output_format.strip())
 
     @property
+    def categories(self) -> list[CategorySpec]:
+        return self._categories
+
+    @property
     def all_assets(self) -> list[AssetSpec]:
-        return self._assets
+        result: list[AssetSpec] = []
+        for category in self._categories:
+            result.extend(category.items)
+        return result
+
+    @property
+    def category_names(self) -> dict[str, str]:
+        return {cat.key: cat.display_name for cat in self._categories}
 
     @property
     def analysis(self) -> AnalysisConfig:
