@@ -57,12 +57,7 @@ jobs:
           echo "Generated report directory: $REPORT_DIR"
           echo "Execution log will be saved to: $LOG_FILE"
 
-          USE_AI="${{ github.event.inputs.use_ai || 'false' }}"
-          if [ "$USE_AI" = "true" ]; then
-            python main.py -a -o "$REPORT_DIR" 2>&1 | tee "$LOG_FILE"
-          else
-            python main.py -o "$REPORT_DIR" 2>&1 | tee "$LOG_FILE"
-          fi
+          python main.py -a -o "$REPORT_DIR" 2>&1 | tee "$LOG_FILE"
 
           REPORT_FILE=$(find "$REPORT_DIR" -maxdepth 1 -type f -name 'analysis_*.md' | sort | tail -n 1)
           if [ -z "$REPORT_FILE" ]; then
