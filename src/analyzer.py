@@ -20,8 +20,12 @@ class AssetAnalyzer:
             except Exception as exc:
                 print(f"初始化 ZhipuAiClient 失败: {exc}")
 
-    def _format_data_for_analysis(self, data: list[AssetData]) -> str:
+    def _format_data_for_analysis(self, data: list[AssetData], interval: str = "daily") -> str:
         lines = []
+        is_weekly = interval == "weekly"
+        price_label = "本周收盘价" if is_weekly else "当前价格"
+        change_label = "周涨跌" if is_weekly else "涨跌"
+
         for item in data:
             if item.error:
                 lines.append(
@@ -30,7 +34,7 @@ class AssetAnalyzer:
             else:
                 change_str = ""
                 if item.change is not None and item.change_percent is not None:
-                    change_str = f", 涨跌: {item.change:+.2f} ({item.change_percent:+.2f}%)"
+                    change_str = f", {change_label}: {item.change:+.2f} ({item.change_percent:+.2f}%)"
 
                 price_str = (
                     f"{item.current_price:.2f}"
@@ -38,7 +42,7 @@ class AssetAnalyzer:
                     else "N/A"
                 )
                 lines.append(
-                    f"- {item.name}({item.symbol}): 当前价格 {price_str}{change_str}"
+                    f"- {item.name}({item.symbol}): {price_label} {price_str}{change_str}"
                 )
 
         return "\n".join(lines)
@@ -60,11 +64,11 @@ class AssetAnalyzer:
 
         return " ".join(unique_asset_names + list(self.SEARCH_QUERY_KEYWORDS))
 
-    def analyze_with_ai(self, data: list[AssetData]) -> str:
+    def analyze_with_ai(self, data: list[AssetData], interval: str = "daily") -> str:
         if not self.client:
             return "AI分析不可用：未配置API密钥或zai-sdk未安装"
 
-        data_summary = self._format_data_for_analysis(data)
+        data_summary = self._format_data_for_analysis(data, interval)
         search_query = self._generate_search_query(data)
         prompt = self.config.analysis_prompt.format(
             data_summary=data_summary,
@@ -138,13 +142,13 @@ class AssetAnalyzer:
 
         return "\n".join(lines)
 
-    def analyze(self, data: list[AssetData], use_ai: bool = False) -> dict[str, Any]:
+    def analyze(self, data: list[AssetData], use_ai: bool = False, interval: str = "daily") -> dict[str, Any]:
         result = {
             "basic_analysis": self.analyze_basic(data),
             "ai_analysis": None,
         }
 
         if use_ai and self.client:
-            result["ai_analysis"] = self.analyze_with_ai(data)
+            result["ai_analysis"] = self.analyze_with_ai(data, interval)
 
         return result

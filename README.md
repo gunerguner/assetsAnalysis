@@ -94,6 +94,16 @@ python main.py -o /path/to/output
 python main.py -c /path/to/config.yaml
 ```
 
+### 指定数据维度
+
+```bash
+# 周维度数据（本周收盘价 vs 上周收盘价）
+python main.py -w
+
+# 日维度数据（当前价格 vs 前日收盘价，默认）
+python main.py -d
+```
+
 ### 完整示例
 
 ```bash
@@ -107,10 +117,14 @@ python main.py -a -o ./reports -c ./my_config.yaml
 | `--use-ai` | `-a` | 启用AI分析（需要配置ZAI_API_KEY） |
 | `--config` | `-c` | 指定配置文件路径（默认使用config.yaml） |
 | `--output` | `-o` | 指定输出目录路径（默认使用output/） |
+| `--weekly` | `-w` | 使用周维度数据（本周 vs 上周） |
+| `--daily` | `-d` | 使用日维度数据（当前 vs 前日，默认） |
 
 ## GitHub Actions 自动化
 
 项目配置了GitHub Actions工作流，每周五美股收盘后（UTC 22:30）自动运行分析，并将报告提交到 `data` 分支。
+
+> **注意**：GitHub Actions 运行时使用 `-w` 参数，即周维度数据。
 
 ### 手动触发工作流
 
@@ -160,10 +174,12 @@ assetsAnalysis/
 
 分析报告会生成Markdown格式的文件，包含：
 
-- 各资产当前价格
-- 涨跌幅统计
+- 各资产当前价格/本周收盘价
+- 涨跌幅统计/周涨跌统计
 - AI分析结果（如果启用）
 - 市场趋势总结
+
+> 周维度模式下，报告显示的是本周收盘价与上周收盘价的对比；日维度模式下，显示的是当前价格与前日收盘价的对比。
 
 ## 注意事项
 

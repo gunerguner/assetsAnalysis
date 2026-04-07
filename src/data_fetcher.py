@@ -21,27 +21,44 @@ class AssetDataFetcher:
         self.retry_delay = retry_delay
         self.max_workers = max_workers
 
-    def _extract_market_data(self, ticker: yf.Ticker) -> tuple[float | None, float | None, int | None]:
+    def _extract_market_data(
+        self, ticker: yf.Ticker, interval: str = "daily"
+    ) -> tuple[float | None, float | None, int | None]:
         current_price = None
         previous_close = None
         volume = None
 
-        try:
-            fast_info = ticker.fast_info
-            current_price = fast_info.get("last_price")
-            previous_close = fast_info.get("previous_close")
-            volume = fast_info.get("last_volume")
-        except Exception:
-            pass
+        if interval == "weekly":
+            # 周维度：获取周K线数据
+            try:
+                hist = ticker.history(period="2wk", interval="1wk")
+                if hist is not None and len(hist) >= 2:
+                    # 最近两周的数据
+                    current_week = hist.iloc[-1]
+                    previous_week = hist.iloc[-2]
+                    current_price = current_week["Close"]
+                    previous_close = previous_week["Close"]
+                    volume = int(current_week["Volume"]) if "Volume" in current_week else None
+            except Exception:
+                pass
+        else:
+            # 日维度：保持原有逻辑
+            try:
+                fast_info = ticker.fast_info
+                current_price = fast_info.get("last_price")
+                previous_close = fast_info.get("previous_close")
+                volume = fast_info.get("last_volume")
+            except Exception:
+                pass
 
-        if current_price is None or previous_close is None:
-            info = ticker.info
-            if current_price is None:
-                current_price = info.get("currentPrice") or info.get("regularMarketPrice")
-            if previous_close is None:
-                previous_close = info.get("previousClose") or info.get("regularMarketPreviousClose")
-            if volume is None:
-                volume = info.get("volume") or info.get("regularMarketVolume")
+            if current_price is None or previous_close is None:
+                info = ticker.info
+                if current_price is None:
+                    current_price = info.get("currentPrice") or info.get("regularMarketPrice")
+                if previous_close is None:
+                    previous_close = info.get("previousClose") or info.get("regularMarketPreviousClose")
+                if volume is None:
+                    volume = info.get("volume") or info.get("regularMarketVolume")
 
         return current_price, previous_close, volume
 
@@ -73,11 +90,11 @@ class AssetDataFetcher:
             error=error,
         )
 
-    def fetch_single(self, symbol: str, name: str, category: str) -> AssetData:
+    def fetch_single(self, symbol: str, name: str, category: str, interval: str = "daily") -> AssetData:
         for attempt in range(self.retry_count):
             try:
                 ticker = yf.Ticker(symbol)
-                current_price, previous_close, volume = self._extract_market_data(ticker)
+                current_price, previous_close, volume = self._extract_market_data(ticker, interval)
                 return self._create_asset_data(
                     symbol, name, category, current_price, previous_close, volume
                 )
@@ -90,7 +107,7 @@ class AssetDataFetcher:
                     )
         return self._create_asset_data(symbol, name, category, None, None, None, error="Unknown error after retries")
 
-    def fetch_all(self, assets: list[AssetSpec]) -> list[AssetData]:
+    def fetch_all(self, assets: list[AssetSpec], interval: str = "daily") -> list[AssetData]:
         if not assets:
             return []
 
@@ -104,6 +121,7 @@ class AssetDataFetcher:
                     symbol=asset.symbol,
                     name=asset.name,
                     category=asset.category_key,
+                    interval=interval,
                 ): idx
                 for idx, asset in enumerate(assets)
             }
